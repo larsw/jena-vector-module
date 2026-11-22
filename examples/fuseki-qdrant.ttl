@@ -1,0 +1,38 @@
+## Fuseki configuration: a TDB2 dataset whose ex:embedding vectors are mirrored into Qdrant.
+##
+## Run Fuseki with jena-vector, jena-vector-qdrant and the Qdrant client's dependencies (gRPC, protobuf, Guava)
+## on its classpath. To collect them:
+##   ./mvnw -pl jena-vector-qdrant dependency:copy-dependencies -DincludeScope=runtime
+##   java -cp "jena-fuseki-server.jar:jena-vector/target/*:jena-vector-qdrant/target/*:jena-vector-qdrant/target/dependency/*" \
+##        org.apache.jena.fuseki.main.cmds.FusekiServerCmd --config examples/fuseki-qdrant.ttl
+## jena-vector-qdrant's tests run this file in Fuseki against a Qdrant container (TestFusekiWithQdrant).
+##
+## Swapping the vector database means replacing the ex:index description; nothing else changes.
+
+PREFIX fuseki: <http://jena.apache.org/fuseki#>
+PREFIX tdb2:   <http://jena.apache.org/2016/tdb#>
+PREFIX vec:    <http://jena.apache.org/vector#>
+PREFIX ex:     <http://example/>
+
+ex:service a fuseki:Service ;
+    fuseki:name "docs" ;
+    fuseki:endpoint [ fuseki:operation fuseki:query ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:update ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:gsp-rw ; fuseki:name "data" ] ;
+    fuseki:dataset ex:dataset .
+
+ex:dataset a vec:VectorDataset ;
+    vec:dataset   ex:tdb ;
+    vec:index     ex:index ;
+    vec:predicate ex:embedding .
+
+ex:tdb a tdb2:DatasetTDB2 ;
+    tdb2:location "DB-docs" .
+
+ex:index a vec:QdrantIndex ;
+    vec:host       "localhost" ;
+    vec:port       6334 ;
+    ## vec:apiKeyEnv "QDRANT_API_KEY" ;   # for a secured Qdrant: the name of an environment variable
+    vec:collection "docs" ;
+    vec:dimension  384 ;
+    vec:metric     "cosine" .
