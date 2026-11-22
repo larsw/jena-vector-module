@@ -27,6 +27,7 @@
   <modules>
     <module>jena-vector</module>
     <module>jena-vector-qdrant</module>
+    <module>jena-vector-fuseki</module>
   </modules>
 
   <properties>
@@ -37,6 +38,7 @@
     <ver.junit>5.13.4</ver.junit>
     <ver.testcontainers>1.21.4</ver.testcontainers>
     <ver.slf4j>2.0.17</ver.slf4j>
+    <ver.log4j2>2.26.1</ver.log4j2>
   </properties>
 
   <dependencyManagement>
@@ -71,6 +73,11 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-simple</artifactId>
         <version>${ver.slf4j}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-slf4j2-impl</artifactId>
+        <version>${ver.log4j2}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

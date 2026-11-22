@@ -1,4 +1,4 @@
-# jena-vector (sketch)
+# jena-vector
 
 Nearest-neighbour search in SPARQL for Apache Jena, backed by an external vector database. Vectors live in the
 RDF data as literals; the module mirrors them into a vector index and adds a `vec:query` property function.
@@ -14,6 +14,7 @@ tests pass against Jena 6.2.0 and Qdrant 1.20.2. The design and its open questio
 |---|---|---|
 | `jena-vector` | `VectorIndex` interface, change capture (`DatasetGraphVector`), `vec:query`, assemblers, `VectorIndexer` (rebuild and check), an exact in-memory index, and the test suites every backend runs (test-jar) | jena-arq, jena-rdfpatch |
 | `jena-vector-qdrant` | `QdrantVectorIndex` and the `vec:QdrantIndex` assembler | jena-vector, Qdrant Java client 1.20 |
+| `jena-vector-fuseki` | No code: collects the runtime classpath for Fuseki with both modules into `target/lib` | jena-vector-qdrant, jena-fuseki-main, Log4j 2 |
 
 ## Data and queries
 
@@ -83,6 +84,37 @@ not persistent) works the same way, for tests and small data.
 
 Data loaded without going through the vector dataset (the TDB2 bulk loader, for example) is not indexed.
 Run `VectorIndexer.rebuild(dsg)` after such a load. `VectorIndexer.check(dsg)` compares counts.
+
+## Docker
+
+The `Dockerfile` builds the modules in one stage and runs Fuseki on a JRE in the next, as a non-root user.
+`compose.yaml` starts it together with Qdrant:
+
+```
+docker compose up --build
+```
+
+The dataset is then at `http://localhost:3030/docs`: SPARQL at `/docs/query` (or `/docs/sparql`), updates at
+`/docs/update`, the Graph Store Protocol at `/docs/data`. TDB2 keeps its files in the `/fuseki/databases`
+volume.
+
+The container writes its Fuseki configuration from these environment variables at start:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DATASET_NAME` | `docs` | Service path and TDB2 directory name |
+| `QDRANT_HOST`, `QDRANT_PORT` | `qdrant`, `6334` | Qdrant gRPC address |
+| `QDRANT_TLS` | `false` | Use TLS to Qdrant |
+| `QDRANT_API_KEY` | unset | Qdrant API key. The configuration names the variable; the key is never written to it |
+| `QDRANT_COLLECTION` | the dataset name | Qdrant collection |
+| `VECTOR_DIMENSION`, `VECTOR_METRIC` | `384`, `cosine` | Must match the vectors in the data; `cosine`, `dot` or `euclidean` |
+| `VECTOR_PREDICATES` | `http://example/embedding` | Comma-separated IRIs of the predicates whose objects are indexed |
+| `FUSEKI_PORT` | `3030` | HTTP port |
+| `JAVA_OPTS` | `-XX:MaxRAMPercentage=75` | JVM options |
+| `FUSEKI_CONFIG` | unset | Path of your own configuration file (mounted). The variables above are then ignored |
+
+Values that would not fit in the generated Turtle are refused at start. The image runs `FusekiMainCmd`,
+which has no admin UI and no admin endpoints.
 
 ## Build
 

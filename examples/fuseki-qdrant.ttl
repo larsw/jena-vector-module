@@ -1,10 +1,9 @@
 ## Fuseki configuration: a TDB2 dataset whose ex:embedding vectors are mirrored into Qdrant.
 ##
-## Run Fuseki with jena-vector, jena-vector-qdrant and the Qdrant client's dependencies (gRPC, protobuf, Guava)
-## on its classpath. To collect them:
-##   ./mvnw -pl jena-vector-qdrant dependency:copy-dependencies -DincludeScope=runtime
-##   java -cp "jena-fuseki-server.jar:jena-vector/target/*:jena-vector-qdrant/target/*:jena-vector-qdrant/target/dependency/*" \
-##        org.apache.jena.fuseki.main.cmds.FusekiServerCmd --config examples/fuseki-qdrant.ttl
+## Run it with the classpath the jena-vector-fuseki module collects (the same one the Docker image uses):
+##   ./mvnw -DskipTests package
+##   java -cp 'jena-vector-fuseki/target/lib/*' org.apache.jena.fuseki.main.cmds.FusekiMainCmd \
+##        --config=examples/fuseki-qdrant.ttl
 ## jena-vector-qdrant's tests run this file in Fuseki against a Qdrant container (TestFusekiWithQdrant).
 ##
 ## Swapping the vector database means replacing the ex:index description; nothing else changes.

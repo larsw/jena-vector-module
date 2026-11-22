@@ -1,0 +1,36 @@
+# Fuseki with jena-vector, and the Qdrant it indexes into.
+#   docker compose up --build
+# SPARQL: http://localhost:3030/docs/query and /docs/update; Graph Store Protocol: /docs/data.
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.20.2
+    volumes:
+      - qdrant-storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  fuseki:
+    build: .
+    image: jena-vector-fuseki
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    ports:
+      - "3030:3030"
+    environment:
+      DATASET_NAME: docs
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: "6334"
+      VECTOR_DIMENSION: "384"
+      VECTOR_METRIC: cosine
+      VECTOR_PREDICATES: http://example/embedding
+    volumes:
+      - fuseki-databases:/fuseki/databases
+
+volumes:
+  qdrant-storage:
+  fuseki-databases:
