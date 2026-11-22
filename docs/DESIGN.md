@@ -55,8 +55,20 @@ Kept thin on purpose, so that any database can implement it:
 - **Scores are higher-is-closer** for every metric; Euclidean distance is negated. SPARQL can always
   `ORDER BY DESC(?score)`.
 
-`VectorIndexContract` (12 tests) and `AbstractVectorDatasetTest` (16 tests, SPARQL over TDB2) ship in the
+`VectorIndexContract` (13 tests) and `AbstractVectorDatasetTest` (19 tests, SPARQL over TDB2) ship in the
 test-jar. A backend passes both, as the in-memory and Qdrant indexes do.
+
+## Vector literals and settings
+
+Two datatypes hold vectors. `vec:vector` is a JSON array, readable and easy to write by hand. `vec:float32` is
+base64 of the IEEE 754 float32 values, little-endian: exact, about a third the size for embeddings, and
+what a program that already holds a `float[]` writes. Both parse to the same vector, so the query's datatype
+need not match the data's. A literal of any other datatype on an indexed predicate is ignored.
+
+`vec:dimension()` and `vec:metric()` return the settings of the dataset's index, found the same way as for
+`vec:query`. On a dataset without one they are an error, so the variable stays unbound. Without them a client
+cannot tell an endpoint without jena-vector from an empty index: ARQ reads an unregistered `vec:query` as an
+ordinary triple pattern, which matches nothing.
 
 ## Change capture
 
@@ -170,9 +182,10 @@ Likely next backends, from the earlier research:
 
 | Suite | Runs against | Covers |
 |---|---|---|
-| `VectorIndexContract` (12) | in-memory, Qdrant | ordering, scores per metric, replace, delete, filter inside the search, counts, clear, dimension checks |
-| `AbstractVectorDatasetTest` (16) | in-memory, Qdrant | SPARQL search, predicates, graph scope incl. union, vector from data, bound subject, abort, delete, drop graph, failed index write aborts, phantom entries never returned, failed delete hidden and repaired by rebuild, rebuild after bulk load, wrong dimension, blank nodes, ignored predicates |
+| `VectorIndexContract` (13) | in-memory, Qdrant | ordering, scores per metric, replace, delete, filter inside the search, counts, clear, dimension checks, zero vectors under cosine |
+| `AbstractVectorDatasetTest` (19) | in-memory, Qdrant | `vec:float32` literals, `vec:dimension()`/`vec:metric()`, `DROP ALL`/`CLEAR`, SPARQL search, predicates, graph scope incl. union, vector from data, bound subject, abort, delete, drop graph, failed index write aborts, phantom entries never returned, failed delete hidden and repaired by rebuild, rebuild after bulk load, wrong dimension, blank nodes, ignored predicates |
 | `TestVectorAssembler` (2) | in-memory | configuration builds a working dataset; missing predicate is an error |
+| `TestVectorLiterals` (5) | none | `vec:float32` round trip and byte order, malformed literals, settings unbound without an index |
 | `TestQdrantVectorIndex` (+3) | Qdrant | reopening keeps data, mismatched collection refused, batches split |
 | `TestQdrantAssembler` (3) | Qdrant | configuration, missing collection, unset API key variable |
-| `TestFusekiWithQdrant` (1) | Fuseki + Qdrant | `examples/fuseki-qdrant.ttl` served over HTTP: update, query, delete, `GRAPH ?g` |
+| `TestFusekiWithQdrant` (1) | Fuseki + Qdrant | `examples/fuseki-qdrant.ttl` served over HTTP: index settings, update, query, delete, `GRAPH ?g` |

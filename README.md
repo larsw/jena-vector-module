@@ -18,13 +18,15 @@ tests pass against Jena 6.2.0 and Qdrant 1.20.2. The design and its open questio
 
 ## Data and queries
 
-Vectors are literals of datatype `vec:vector`, written as a JSON array:
+Vectors are literals of datatype `vec:vector`, written as a JSON array, or `vec:float32`, base64 of the
+little-endian float32 values (compact and exact, for embeddings written by programs). Either finds the other:
 
 ```turtle
 PREFIX vec: <http://jena.apache.org/vector#>
 PREFIX ex:  <http://example/>
 
 ex:doc1 ex:embedding "[0.12, -0.03, 0.88]"^^vec:vector .
+ex:doc2 ex:embedding "AACAPwAAAAAAAAAA"^^vec:float32 .     # [1.0, 0.0, 0.0]
 ```
 
 Search with `vec:query`:
@@ -53,6 +55,9 @@ SELECT ?doc {
   `GRAPH <g>`, or all named graphs for `<urn:x-arq:UnionGraph>`.
 - Every hit is checked against the dataset before it is returned, so results never include deleted or
   uncommitted data.
+- `vec:dimension()` and `vec:metric()` return the index's settings, and are unbound on a dataset without one,
+  so a client can check that an endpoint answers `vec:query`:
+  `SELECT ?d ?m { BIND(vec:dimension() AS ?d) BIND(vec:metric() AS ?m) }`.
 
 ## Configuration
 
@@ -123,7 +128,14 @@ which has no admin UI and no admin endpoints.
 ```
 
 The Qdrant tests start `qdrant/qdrant:v1.20.2` with Testcontainers, so Docker must be running. Current totals:
-30 tests in `jena-vector`, 35 in `jena-vector-qdrant`.
+39 tests in `jena-vector`, 39 in `jena-vector-qdrant`.
+
+## Users
+
+The SPARQL backend of [DICE](https://github.com/larsw/dice/tree/feat/fuseki-sparql-kg) can use a jena-vector dataset
+as its vector index (`embabel.dice.store.sparql.vector-index: jena-vector`): it stores embeddings as
+`vec:float32`, one named graph per context, and asks `vec:query`. With the Docker image, set
+`VECTOR_PREDICATES=https://embabel.com/dice/ns#embedding`.
 
 ## Adding a backend
 

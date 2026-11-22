@@ -271,4 +271,40 @@ public abstract class AbstractVectorDatasetTest {
         assertThrows(VectorIndexException.class, () -> update("""
                 INSERT DATA { ex:a ex:embedding "a string" }"""));
     }
+
+    @Test
+    public void float32LiteralsAreIndexedAndMatchJsonVectors() {
+        Node a = VectorLiterals.float32Literal(1, 0, 0);
+        Node c = VectorLiterals.float32Literal(0, 1, 0);
+        Txn.executeWrite(dataset, () -> {
+            dsg.add(Quad.defaultGraphIRI, NodeFactory.createURI("http://example/a"), EMB, a);
+            dsg.add(Quad.defaultGraphIRI, NodeFactory.createURI("http://example/c"), EMB, c);
+        });
+        assertEquals(List.of("http://example/a"),
+                     select("s", """
+                             SELECT ?s { (?s ?score) vec:query ("[1, 0, 0]"^^vec:vector 1) }"""));
+        String query = "SELECT ?s { ?s vec:query (\"" + c.getLiteralLexicalForm() + "\"^^vec:float32 1) }";
+        assertEquals(List.of("http://example/c"), select("s", query));
+
+        Txn.executeWrite(dataset, () -> dsg.delete(Quad.defaultGraphIRI, NodeFactory.createURI("http://example/c"), EMB, c));
+        assertEquals(1, index.count(VectorFilter.ANY));
+    }
+
+    @Test
+    public void theIndexSettingsCanBeAskedFor() {
+        assertEquals(List.of("3"), select("d", "SELECT ?d { BIND(str(vec:dimension()) AS ?d) }"));
+        assertEquals(List.of("cosine"), select("m", "SELECT ?m { BIND(vec:metric() AS ?m) }"));
+    }
+
+    @Test
+    public void dropAllAndClearRemoveEveryEntry() {
+        loadThreeDocs();
+        update("INSERT DATA { GRAPH ex:g { ex:d ex:embedding \"[0, 0, 1]\"^^vec:vector } }");
+        assertEquals(4, index.count(VectorFilter.ANY));
+        update("DROP ALL");
+        assertEquals(0, index.count(VectorFilter.ANY), "DROP ALL");
+        loadThreeDocs();
+        update("CLEAR DEFAULT");
+        assertEquals(0, index.count(VectorFilter.ANY), "CLEAR DEFAULT");
+    }
 }

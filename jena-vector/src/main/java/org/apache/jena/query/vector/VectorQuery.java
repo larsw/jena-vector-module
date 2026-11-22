@@ -18,10 +18,11 @@ import org.apache.jena.assembler.Assembler;
 import org.apache.jena.query.vector.assembler.InMemoryVectorIndexAssembler;
 import org.apache.jena.query.vector.assembler.VectorDatasetAssembler;
 import org.apache.jena.sparql.core.assembler.AssemblerUtils;
+import org.apache.jena.sparql.function.FunctionRegistry;
 import org.apache.jena.sparql.pfunction.PropertyFunctionRegistry;
 import org.apache.jena.sys.JenaSystem;
 
-/** Registers {@code vec:query} and the core assemblers. Runs once, from {@link InitJenaVector}. */
+/** Registers {@code vec:query}, {@code vec:dimension()}, {@code vec:metric()} and the core assemblers. Runs once, from {@link InitJenaVector}. */
 public final class VectorQuery {
     private VectorQuery() {}
 
@@ -36,6 +37,8 @@ public final class VectorQuery {
             initialized = true;
             JenaSystem.init();
             PropertyFunctionRegistry.get().put(VectorVocab.queryPF, VectorQueryPF.class);
+            FunctionRegistry.get().put(VectorVocab.dimensionFunction, IndexSettingFunction.class);
+            FunctionRegistry.get().put(VectorVocab.metricFunction, IndexSettingFunction.class);
             AssemblerUtils.registerDataset(VectorVocab.VectorDataset, new VectorDatasetAssembler());
             Assembler.general().implementWith(VectorVocab.InMemoryIndex, new InMemoryVectorIndexAssembler());
         }

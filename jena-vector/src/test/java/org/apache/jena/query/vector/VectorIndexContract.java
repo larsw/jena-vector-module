@@ -187,4 +187,16 @@ public abstract class VectorIndexContract {
         assertEquals(7, index.dimension());
         assertEquals(Metric.DOT, index.metric());
     }
+
+    @Test
+    public void aZeroVectorIsAcceptedUnderCosine() {
+        // Cosine is undefined for a zero vector. Data can hold one (an empty text's embedding, say), and an
+        // index must not refuse it, or the dataset update that wrote it would abort.
+        VectorIndex index = index(2, Metric.COSINE);
+        index.upsert(List.of(entry(G1, "<http://example/zero>", P, 0, 0), entry(G1, "<http://example/a>", P, 1, 0)));
+        assertEquals(2, index.count(VectorFilter.ANY));
+        List<VectorHit> hits = index.search(new float[] {1, 0}, 2, VectorFilter.ANY);
+        assertEquals("<http://example/a>", hits.get(0).subject());
+        hits.forEach(h -> assertTrue(Float.isFinite(h.score()), "finite score for " + h.subject()));
+    }
 }

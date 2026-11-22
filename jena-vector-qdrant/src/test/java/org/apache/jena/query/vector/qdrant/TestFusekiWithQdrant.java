@@ -52,6 +52,12 @@ public class TestFusekiWithQdrant {
             List<String> found = new ArrayList<>();
             link.querySelect("""
                     PREFIX vec: <http://jena.apache.org/vector#>
+                    SELECT ?d ?m { BIND(str(vec:dimension()) AS ?d) BIND(vec:metric() AS ?m) }""",
+                             row -> found.add(row.get("d").getLiteralLexicalForm() + " " + row.get("m").getLiteralLexicalForm()));
+            assertEquals(List.of("3 cosine"), found, "the index settings over HTTP");
+            found.clear();
+            link.querySelect("""
+                    PREFIX vec: <http://jena.apache.org/vector#>
                     SELECT ?s ?score { (?s ?score) vec:query ("[0, 1, 0]"^^vec:vector 5) } ORDER BY DESC(?score)""",
                              row -> found.add(row.get("s").getURI()));
             assertEquals(List.of("http://example/b", "http://example/a"), found);

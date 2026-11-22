@@ -105,6 +105,8 @@ public class VectorQueryPF extends PropertyFunctionBase {
         int i = 0;
         while (i < args.size() && args.get(i).isURI())
             predicates.add(VectorKeys.encode(args.get(i++)));
+        if (i >= args.size())
+            return IterLib.noResults(execCxt);   // Predicates but no vector.
         Node vectorNode = Var.lookup(binding, args.get(i));
         if (!VectorLiterals.isVector(vectorNode))
             return IterLib.noResults(execCxt);   // Unbound or not a vector: no match, as for any other pattern.
@@ -203,12 +205,17 @@ public class VectorQueryPF extends PropertyFunctionBase {
 
     /** The index from the context, or from a {@link DatasetGraphVector} anywhere in the wrapper chain. */
     static VectorIndex findIndex(ExecutionContext execCxt) {
-        Object fromContext = execCxt.getContext().get(VectorVocab.symVectorIndex);
+        return findIndex(execCxt.getContext(), execCxt.getDataset());
+    }
+
+    /** The index from the context symbol {@code vec:index}, or from a {@link DatasetGraphVector} in the wrapper chain. */
+    static VectorIndex findIndex(org.apache.jena.sparql.util.Context context, DatasetGraph dataset) {
+        Object fromContext = context == null ? null : context.get(VectorVocab.symVectorIndex);
         if (fromContext instanceof VectorIndex vi)
             return vi;
         if (fromContext != null)
             log.warn("Context setting {} is a {}, not a VectorIndex", VectorVocab.symVectorIndex, Lib.className(fromContext));
-        DatasetGraph d = execCxt.getDataset();
+        DatasetGraph d = dataset;
         while (d != null) {
             if (d instanceof DatasetGraphVector v)
                 return v.getVectorIndex();

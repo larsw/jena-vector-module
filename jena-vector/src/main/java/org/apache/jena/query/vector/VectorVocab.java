@@ -31,8 +31,19 @@ public final class VectorVocab {
     /** Datatype of vector literals: a JSON array of numbers, {@code "[0.1, 0.2]"^^vec:vector}. */
     public static final String vectorDatatypeURI = NS + "vector";
 
+    /**
+     * Datatype of compact vector literals: base64 (RFC 4648, with padding) of the vector's IEEE 754 float32
+     * values, little-endian, {@code "zczMPc3MTD4="^^vec:float32}. About a third the size of {@code vec:vector}
+     * for embeddings, and exact.
+     */
+    public static final String float32DatatypeURI = NS + "float32";
+
     /** The property function {@code vec:query}. */
     public static final String queryPF = NS + "query";
+
+    /** The functions {@code vec:dimension()} and {@code vec:metric()}: the settings of the dataset's index. */
+    public static final String dimensionFunction = NS + "dimension";
+    public static final String metricFunction = NS + "metric";
 
     /** Context symbol: a {@link VectorIndex} to use instead of finding one on the dataset. */
     public static final Symbol symVectorIndex = Symbol.create(NS + "index");
