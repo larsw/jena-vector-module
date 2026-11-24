@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.jena.atlas.lib.Lib;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
@@ -51,9 +52,10 @@ import org.slf4j.LoggerFactory;
  *   (?s ?score) vec:query ( [predicate ...] vector [limit] )
  * </pre>
  *
- * {@code vector} is a {@code vec:vector} literal or a variable bound to one, for example another resource's
- * embedding. Predicates narrow the search to some indexed predicates (default: all). {@code limit} defaults to
- * {@value #DEFAULT_LIMIT}. Results come best first; {@code ?score} is higher for closer entries.
+ * {@code vector} is a {@code vec:vector} or {@code vec:float32} literal or a variable bound to one, for example
+ * another resource's embedding. Predicates narrow the search to some indexed predicates (default: all).
+ * {@code limit} defaults to {@value #DEFAULT_LIMIT}. Results come best first; {@code ?score} is higher for closer
+ * entries.
  * <p>
  * The search runs in the graph the pattern is evaluated in: the default graph at top level, {@code <g>} inside
  * {@code GRAPH <g>}, and every named graph for the union graph.
@@ -66,6 +68,11 @@ import org.slf4j.LoggerFactory;
 public class VectorQueryPF extends PropertyFunctionBase {
 
     private static final Logger log = LoggerFactory.getLogger(VectorQueryPF.class);
+
+    // Both warnings can fire once per row (vec:query inside a join, vec:dimension() in a FILTER), so each is a
+    // WARN the first time and a DEBUG after that.
+    private static final AtomicBoolean warnedNoIndex = new AtomicBoolean();
+    private static final AtomicBoolean warnedBadContextSetting = new AtomicBoolean();
 
     public static final int DEFAULT_LIMIT = 10;
     /** Most entries fetched for one call while trying to fill the limit. */
@@ -95,7 +102,8 @@ public class VectorQueryPF extends PropertyFunctionBase {
                               ExecutionContext execCxt) {
         VectorIndex index = findIndex(execCxt);
         if (index == null) {
-            log.warn("vec:query: no vector index (not a vector dataset and no {} in the context)", VectorVocab.symVectorIndex);
+            warnOnce(warnedNoIndex, "vec:query: no vector index (not a vector dataset and no {} in the context)",
+                     VectorVocab.symVectorIndex);
             return IterLib.noResults(execCxt);
         }
 
@@ -214,7 +222,8 @@ public class VectorQueryPF extends PropertyFunctionBase {
         if (fromContext instanceof VectorIndex vi)
             return vi;
         if (fromContext != null)
-            log.warn("Context setting {} is a {}, not a VectorIndex", VectorVocab.symVectorIndex, Lib.className(fromContext));
+            warnOnce(warnedBadContextSetting, "Context setting {} is a {}, not a VectorIndex", VectorVocab.symVectorIndex,
+                     Lib.className(fromContext));
         DatasetGraph d = dataset;
         while (d != null) {
             if (d instanceof DatasetGraphVector v)
@@ -222,6 +231,14 @@ public class VectorQueryPF extends PropertyFunctionBase {
             d = d instanceof DatasetGraphWrapper w ? w.getWrapped() : null;
         }
         return null;
+    }
+
+    /** Logs at WARN the first time this JVM meets the case {@code flag} tracks, and at DEBUG after that. */
+    private static void warnOnce(AtomicBoolean flag, String format, Object... args) {
+        if (flag.compareAndSet(false, true))
+            log.warn(format + " (later occurrences are logged at DEBUG)", args);
+        else
+            log.debug(format, args);
     }
 
     private static boolean isInteger(Node n) {

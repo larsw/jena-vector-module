@@ -291,6 +291,17 @@ public abstract class AbstractVectorDatasetTest {
     }
 
     @Test
+    public void deletingAnAbsentLiteralOfTheOtherDatatypeKeepsTheEntry() {
+        // Entry ids come from the lexical form; the same text under vec:vector is not this vector.
+        String lex = VectorLiterals.float32Literal(1, 0, 0).getLiteralLexicalForm();
+        update("INSERT DATA { ex:a ex:embedding \"" + lex + "\"^^vec:float32 }");
+        update("DELETE DATA { ex:a ex:embedding \"" + lex + "\"^^vec:vector }");
+        assertEquals(1, index.count(VectorFilter.ANY));
+        assertEquals(List.of("http://example/a"), select("s", """
+                SELECT ?s { ?s vec:query ("[1, 0, 0]"^^vec:vector 1) }"""));
+    }
+
+    @Test
     public void theIndexSettingsCanBeAskedFor() {
         assertEquals(List.of("3"), select("d", "SELECT ?d { BIND(str(vec:dimension()) AS ?d) }"));
         assertEquals(List.of("cosine"), select("m", "SELECT ?m { BIND(vec:metric() AS ?m) }"));
@@ -304,7 +315,10 @@ public abstract class AbstractVectorDatasetTest {
         update("DROP ALL");
         assertEquals(0, index.count(VectorFilter.ANY), "DROP ALL");
         loadThreeDocs();
+        update("INSERT DATA { GRAPH ex:g { ex:d ex:embedding \"[0, 0, 1]\"^^vec:vector } }");
         update("CLEAR DEFAULT");
-        assertEquals(0, index.count(VectorFilter.ANY), "CLEAR DEFAULT");
+        assertEquals(1, index.count(VectorFilter.ANY), "CLEAR DEFAULT keeps the named graph's entry");
+        assertEquals(List.of("http://example/d"), select("s", """
+                SELECT ?s { GRAPH ex:g { ?s vec:query ("[0, 0, 1]"^^vec:vector 5) } }"""));
     }
 }

@@ -128,7 +128,7 @@ which has no admin UI and no admin endpoints.
 ```
 
 The Qdrant tests start `qdrant/qdrant:v1.20.2` with Testcontainers, so Docker must be running. Current totals:
-39 tests in `jena-vector`, 39 in `jena-vector-qdrant`.
+43 tests in `jena-vector`, 40 in `jena-vector-qdrant`.
 
 ## Users
 

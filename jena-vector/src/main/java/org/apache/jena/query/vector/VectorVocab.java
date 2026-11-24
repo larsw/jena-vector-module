@@ -20,8 +20,8 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.util.Symbol;
 
 /**
- * The {@code vec:} vocabulary: the vector datatype, the property function, the context symbol and the
- * assembler terms. The namespace follows {@code jena-text}'s {@code http://jena.apache.org/text#}.
+ * The {@code vec:} vocabulary: the vector datatypes, the property function, the index-setting functions, the
+ * context symbol and the assembler terms. The namespace follows {@code jena-text}'s {@code http://jena.apache.org/text#}.
  */
 public final class VectorVocab {
     private VectorVocab() {}

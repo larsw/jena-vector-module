@@ -54,6 +54,30 @@ public class TestVectorLiterals {
     }
 
     @Test
+    public void vectorIsStrictJson() {
+        assertArrayEquals(new float[] {0.12f, -0.5f, 3f}, VectorLiterals.parse("[0.12, -0.5, 3]"));
+        assertArrayEquals(new float[] {1e-5f, -0f, 2e3f}, VectorLiterals.parse(" [ 1.0E-5 ,-0, 2e+3 ] "));
+        for (String bad : new String[] {"[1, 2,]", "[1,, 2]", "[,1]", "[1f]", "[1d]", "[0x1p3]", "[+1]", "[.5]",
+                                        "[5.]", "[01]", "[NaN]", "[Infinity]", "[1e39]", "[1 2]", "[\"1\"]"})
+            assertThrows(VectorIndexException.class, () -> VectorLiterals.parse(bad), bad);
+    }
+
+    @Test
+    public void vectorLiteralsBuiltHereParse() {
+        // Float.toString writes forms such as 1.0E-5 and 1.4E-45, which must pass the strict parser.
+        float[] v = {0.1f, -2.5f, 1e-5f, Float.MAX_VALUE, Float.MIN_VALUE, -0f};
+        assertArrayEquals(v, VectorLiterals.parse(VectorLiterals.literal(v)));
+    }
+
+    @Test
+    public void theHelpersRejectWhatTheIndexWouldRefuse() {
+        assertThrows(VectorIndexException.class, () -> VectorLiterals.float32Literal());
+        assertThrows(VectorIndexException.class, () -> VectorLiterals.float32Literal(1, Float.NaN));
+        assertThrows(VectorIndexException.class, () -> VectorLiterals.literal(Float.POSITIVE_INFINITY));
+        assertThrows(VectorIndexException.class, () -> VectorLiterals.literal());
+    }
+
+    @Test
     public void aDatasetWithoutAnIndexLeavesTheSettingsUnbound() {
         VectorQuery.init();
         org.apache.jena.query.Dataset ds = org.apache.jena.query.DatasetFactory.createTxnMem();

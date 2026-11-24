@@ -17,6 +17,7 @@ package org.apache.jena.query.vector;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Base64;
+import java.util.regex.Pattern;
 
 import org.apache.jena.datatypes.RDFDatatype;
 import org.apache.jena.datatypes.TypeMapper;
@@ -66,19 +67,25 @@ public final class VectorLiterals {
         String body = s.substring(1, s.length() - 1).strip();
         if (body.isEmpty())
             throw new VectorIndexException("Empty vector: " + lex);
-        String[] parts = body.split(",");
+        // Limit -1 keeps trailing empty parts, so "[1, 2,]" is rejected rather than read as [1, 2].
+        String[] parts = body.split(",", -1);
         float[] v = new float[parts.length];
         for (int i = 0; i < parts.length; i++) {
-            try {
-                v[i] = Float.parseFloat(parts[i].strip());
-            } catch (NumberFormatException ex) {
-                throw new VectorIndexException("Not a number at position " + i + " in " + lex);
-            }
+            String part = parts[i].strip();
+            if (!JSON_NUMBER.matcher(part).matches())
+                throw new VectorIndexException("Not a JSON number at position " + i + " in " + abbreviate(lex));
+            v[i] = Float.parseFloat(part);
             if (!Float.isFinite(v[i]))
-                throw new VectorIndexException("Vectors hold finite numbers only: " + lex);
+                throw new VectorIndexException("Vectors hold finite numbers only (position " + i + "): " + abbreviate(lex));
         }
         return v;
     }
+
+    /**
+     * A JSON number (RFC 8259). {@link Float#parseFloat} alone also takes Java forms such as {@code 1f},
+     * {@code 0x1p3}, {@code +1} and {@code .5}, which other JSON readers of the same data reject.
+     */
+    private static final Pattern JSON_NUMBER = Pattern.compile("-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?");
 
     /** Parses the lexical form of a {@code vec:float32}: base64 of little-endian float32 values. */
     public static float[] parseFloat32(String lex) {
@@ -86,7 +93,7 @@ public final class VectorLiterals {
         try {
             bytes = Base64.getDecoder().decode(lex.strip());
         } catch (IllegalArgumentException ex) {
-            throw new VectorIndexException("Not base64: " + abbreviate(lex));
+            throw new VectorIndexException("Not base64 (" + ex.getMessage() + "): " + abbreviate(lex), ex);
         }
         if (bytes.length == 0)
             throw new VectorIndexException("Empty vector");
@@ -102,8 +109,9 @@ public final class VectorLiterals {
         return v;
     }
 
-    /** The {@code vec:vector} literal for {@code v}. */
+    /** The {@code vec:vector} literal for {@code v}, which must be non-empty and finite. */
     public static Node literal(float... v) {
+        requireValid(v);
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < v.length; i++) {
             if (i > 0)
@@ -113,12 +121,23 @@ public final class VectorLiterals {
         return NodeFactory.createLiteralDT(sb.append(']').toString(), datatype);
     }
 
-    /** The {@code vec:float32} literal for {@code v}. */
+    /** The {@code vec:float32} literal for {@code v}, which must be non-empty and finite. */
     public static Node float32Literal(float... v) {
+        requireValid(v);
         ByteBuffer buf = ByteBuffer.allocate(v.length * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
         for (float f : v)
             buf.putFloat(f);
         return NodeFactory.createLiteralDT(Base64.getEncoder().encodeToString(buf.array()), float32Datatype);
+    }
+
+    /** Rejects what {@link #parse} would reject, so a literal built here can always be indexed. */
+    private static void requireValid(float[] v) {
+        if (v.length == 0)
+            throw new VectorIndexException("Empty vector");
+        for (int i = 0; i < v.length; i++) {
+            if (!Float.isFinite(v[i]))
+                throw new VectorIndexException("Vectors hold finite numbers only (position " + i + ")");
+        }
     }
 
     private static String abbreviate(String s) {

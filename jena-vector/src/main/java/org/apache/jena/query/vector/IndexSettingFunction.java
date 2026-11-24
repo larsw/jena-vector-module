@@ -35,6 +35,8 @@ public class IndexSettingFunction implements Function {
 
     @Override
     public void build(String uri, ExprList args, Context context) {
+        if (!VectorVocab.dimensionFunction.equals(uri) && !VectorVocab.metricFunction.equals(uri))
+            throw new QueryBuildException("Not an index setting function: " + uri);
         if (!args.isEmpty())
             throw new QueryBuildException(uri + " takes no arguments");
     }
@@ -44,8 +46,10 @@ public class IndexSettingFunction implements Function {
         VectorIndex index = VectorQueryPF.findIndex(env.getContext(), env.getDataset());
         if (index == null)
             throw new ExprEvalException("No vector index on this dataset");
-        return VectorVocab.dimensionFunction.equals(uri)
-                ? NodeValue.makeInteger(index.dimension())
-                : NodeValue.makeString(index.metric().name().toLowerCase(Locale.ROOT));
+        if (VectorVocab.dimensionFunction.equals(uri))
+            return NodeValue.makeInteger(index.dimension());
+        if (VectorVocab.metricFunction.equals(uri))
+            return NodeValue.makeString(index.metric().name().toLowerCase(Locale.ROOT));
+        throw new ExprEvalException("Not an index setting function: " + uri);
     }
 }

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.jena.fuseki.main.FusekiServer;
+import org.apache.jena.graph.Node;
 import org.apache.jena.rdflink.RDFLink;
 import org.apache.jena.rdflink.RDFLinkHTTP;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ public class TestFusekiWithQdrant {
             link.querySelect("""
                     PREFIX vec: <http://jena.apache.org/vector#>
                     SELECT ?d ?m { BIND(str(vec:dimension()) AS ?d) BIND(vec:metric() AS ?m) }""",
-                             row -> found.add(row.get("d").getLiteralLexicalForm() + " " + row.get("m").getLiteralLexicalForm()));
+                             row -> found.add(lexical(row.get("d")) + " " + lexical(row.get("m"))));
             assertEquals(List.of("3 cosine"), found, "the index settings over HTTP");
             found.clear();
             link.querySelect("""
@@ -75,5 +76,10 @@ public class TestFusekiWithQdrant {
             server.stop();
             Files.deleteIfExists(file);
         }
+    }
+
+    /** The lexical form, or "unbound", so a missing value fails the assertion rather than throwing. */
+    private static String lexical(Node n) {
+        return n == null ? "unbound" : n.getLiteralLexicalForm();
     }
 }

@@ -107,6 +107,14 @@ public final class VectorIndexChanges implements RDFChanges {
         // A literal that is not a vector was never indexed, so there is nothing to remove.
         if (!predicates.contains(p) || !VectorKeys.indexable(s) || !VectorLiterals.isVector(o))
             return;
+        // Nor was one whose lexical form is not valid for its datatype. This check matters: ids come from the
+        // lexical form, so deleting an absent "X"^^vec:vector would otherwise remove the entry of "X"^^vec:float32.
+        // Valid forms of the two datatypes never coincide ('[' is not in the base64 alphabet).
+        try {
+            VectorLiterals.parse(o);
+        } catch (VectorIndexException ex) {
+            return;
+        }
         String id = VectorKeys.id(g, s, p, o);
         Map<String, Change> txn = pending.get();
         if (txn == null)

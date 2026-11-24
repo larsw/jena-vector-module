@@ -55,15 +55,17 @@ Kept thin on purpose, so that any database can implement it:
 - **Scores are higher-is-closer** for every metric; Euclidean distance is negated. SPARQL can always
   `ORDER BY DESC(?score)`.
 
-`VectorIndexContract` (13 tests) and `AbstractVectorDatasetTest` (19 tests, SPARQL over TDB2) ship in the
+`VectorIndexContract` (13 tests) and `AbstractVectorDatasetTest` (20 tests, SPARQL over TDB2) ship in the
 test-jar. A backend passes both, as the in-memory and Qdrant indexes do.
 
 ## Vector literals and settings
 
-Two datatypes hold vectors. `vec:vector` is a JSON array, readable and easy to write by hand. `vec:float32` is
+Two datatypes hold vectors. `vec:vector` is a JSON array, readable and easy to write by hand; it is read as strict
+JSON, so Java-only number forms such as `1f` or `0x1p3`, and a trailing comma, make it malformed. `vec:float32` is
 base64 of the IEEE 754 float32 values, little-endian: exact, about a third the size for embeddings, and
 what a program that already holds a `float[]` writes. Both parse to the same vector, so the query's datatype
-need not match the data's. A literal of any other datatype on an indexed predicate is ignored.
+need not match the data's. A literal of any other datatype on an indexed predicate is an error, and so is a
+malformed vector: the update that writes it fails.
 
 `vec:dimension()` and `vec:metric()` return the settings of the dataset's index, found the same way as for
 `vec:query`. On a dataset without one they are an error, so the variable stays unbound. Without them a client
@@ -120,7 +122,7 @@ results, so its failures show up in query answers. This module puts its failures
 
 `(?s ?score) vec:query ([predicate ...] vector [limit])`
 
-- **Vector:** a `vec:vector` literal, or a variable bound to one (for example `ex:doc1 ex:embedding ?v` earlier in
+- **Vector:** a `vec:vector` or `vec:float32` literal, or a variable bound to one (for example `ex:doc1 ex:embedding ?v` earlier in
   the pattern). An unbound or non-vector argument matches nothing, like any other pattern.
 - **Graph scope:** the active graph of the pattern becomes the graph filter. For the default graph that is the
   default graph only; for `GRAPH <g>` it is `<g>`; for the union graph, every named graph. Under `GRAPH ?g`, ARQ
@@ -183,9 +185,9 @@ Likely next backends, from the earlier research:
 | Suite | Runs against | Covers |
 |---|---|---|
 | `VectorIndexContract` (13) | in-memory, Qdrant | ordering, scores per metric, replace, delete, filter inside the search, counts, clear, dimension checks, zero vectors under cosine |
-| `AbstractVectorDatasetTest` (19) | in-memory, Qdrant | `vec:float32` literals, `vec:dimension()`/`vec:metric()`, `DROP ALL`/`CLEAR`, SPARQL search, predicates, graph scope incl. union, vector from data, bound subject, abort, delete, drop graph, failed index write aborts, phantom entries never returned, failed delete hidden and repaired by rebuild, rebuild after bulk load, wrong dimension, blank nodes, ignored predicates |
+| `AbstractVectorDatasetTest` (20) | in-memory, Qdrant | `vec:float32` literals and their deletes, `vec:dimension()`/`vec:metric()`, `DROP ALL`/`CLEAR`, SPARQL search, predicates, graph scope incl. union, vector from data, bound subject, abort, delete, drop graph, failed index write aborts, phantom entries never returned, failed delete hidden and repaired by rebuild, rebuild after bulk load, wrong dimension, blank nodes, ignored predicates |
 | `TestVectorAssembler` (2) | in-memory | configuration builds a working dataset; missing predicate is an error |
-| `TestVectorLiterals` (5) | none | `vec:float32` round trip and byte order, malformed literals, settings unbound without an index |
+| `TestVectorLiterals` (8) | none | `vec:float32` round trip and byte order, strict JSON for `vec:vector`, malformed literals and helper input, settings unbound without an index |
 | `TestQdrantVectorIndex` (+3) | Qdrant | reopening keeps data, mismatched collection refused, batches split |
 | `TestQdrantAssembler` (3) | Qdrant | configuration, missing collection, unset API key variable |
 | `TestFusekiWithQdrant` (1) | Fuseki + Qdrant | `examples/fuseki-qdrant.ttl` served over HTTP: index settings, update, query, delete, `GRAPH ?g` |
